@@ -129,7 +129,17 @@ class ElasticsearchSearchBackend(BaseSearchBackend):
             try:
                 # Make sure the index is there first.
                 self.conn.create_index(self.index_name, self.DEFAULT_SETTINGS)
-                self.conn.put_mapping(self.index_name, 'modelresult', current_mapping)
+            except pyelasticsearch.IndexAlreadyExistsError:
+                pass
+            except Exception:
+                if not self.silently_fail:
+                    raise
+            try:
+                # This allows updating of the mapping with new fields when the
+                # index already exists. Elasticsearch does not support
+                # modifying the mapping for existing fields with a different
+                # type, so they will be ignored.
+                self.conn.put_mapping(self.index_name, 'modelresult', current_mapping, ignore_conflicts=True)
                 self.existing_mapping = current_mapping
             except Exception:
                 if not self.silently_fail:
